@@ -385,8 +385,9 @@
       (assert (= 2 (count x)) (str "Alias should have two parts" x))
       (let [[target alias] x]
         (str (to-sql target)
-             ; Omit AS in FROM, JOIN, etc. - Oracle doesn't allow it
-             (if (= :select *clause*) " AS " " ")
+             ;; This will not work for Oracle, but will always work for postgres
+             ;; See: https://github.com/seancorfield/honeysql/issues/263
+             " AS "
              (if (or (string? alias) (keyword? alias) (symbol? alias))
                (quote-identifier alias :split false)
                (binding [*subquery?* false]
