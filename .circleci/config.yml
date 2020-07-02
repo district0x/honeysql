@@ -1,6 +1,8 @@
-version: 2
+version: 2.1
+
 jobs:
-  build:
+
+  test:
     working_directory: ~/honeysql
     docker:
       - image: circleci/clojure:openjdk-11-tools-deps-1.10.0.442
@@ -28,3 +30,44 @@ jobs:
       - run:
           name: Run all the tests
           command: sh run-tests.sh all
+      - slack/status:
+          channel: travis-ci
+          mentions: $CIRCLE_USERNAME
+
+  deploy:
+   machine: true
+   steps:
+     - checkout
+     - run:
+         name: Deploy to clojars
+         command: env CLOJARS_USERNAME=$CLOJARS_USERNAME CLOJARS_PASSWORD=$CLOJARS_TOKEN clj -A:deploy
+     - slack/status:
+         channel: travis-ci
+         mentions: $CIRCLE_USERNAME
+         fail_only: true
+
+workflows:
+  version: 2
+  test_and_deploy:
+    jobs:
+      - test:
+          context: district0x
+      - approve_deploy:
+          type: approval
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+      - slack/approval-notification:
+          context: district0x
+          message: Pending approval
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+      - deploy:
+          context: district0x
+          requires:
+            - approve_deploy
